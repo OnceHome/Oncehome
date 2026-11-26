@@ -2,7 +2,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css"></head><body>
 <header><h1>หน้าร้าน</h1><p id="today"></p></header>
 <main><form id="login" style="display:none;margin-top:20px"><input id="em" type="email" placeholder="อีเมล" autocomplete="username"><input id="pw" type="password" placeholder="รหัสผ่าน" autocomplete="current-password"><button class="cta"><span>เข้าสู่ระบบ</span></button><div class="err" id="err"></div></form>
-<div id="app" style="display:none"><div class="sum" id="sum"></div><h2>รอทำ</h2><div id="new"></div><h2>ทำเสร็จแล้ว รอเก็บเงิน</h2><div id="ready"></div><button class="x" id="out">ออกจากระบบ</button></div></main>
+<div id="app" style="display:none"><div class="sum" id="sum"></div><h2>รอทำ</h2><div id="new"></div><h2>ทำเสร็จแล้ว รอเก็บเงิน</h2><div id="ready"></div><a href="history.html" style="display:block;margin:18px 4px;font-weight:700;color:inherit">📊 ประวัติยอดขาย / แก้ไขบิล</a><button class="x" id="out">ออกจากระบบ</button></div></main>
 <script type="module">
 import{auth,db,MENU,day,signInWithEmailAndPassword,onAuthStateChanged,signOut,collection,query,where,onSnapshot,doc,updateDoc}from"./common.js";
 const $=i=>document.getElementById(i),P={};MENU.forEach(m=>P[m.id]=m);

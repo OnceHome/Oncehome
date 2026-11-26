@@ -1,0 +1,44 @@
+<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex"><title>ประวัติยอดขาย</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css">
+<style>select{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;margin:6px 0}.bill{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:6px}.dim{opacity:.5}a{color:inherit}</style></head><body>
+<header><h1>ประวัติยอดขาย</h1><p><a href="shop.html">← กลับหน้าร้าน</a></p></header>
+<main><div id="login" style="margin-top:20px;display:none">กรุณาเข้าสู่ระบบที่ <a href="shop.html">หน้าร้าน</a> ก่อน แล้วกลับมาหน้านี้</div>
+<div id="app" style="display:none"><div class="btns" style="margin:14px 0 4px"><button data-r="0">วันนี้</button><button data-r="7">7 วัน</button><button data-r="m">เดือนนี้</button></div>
+<div style="display:flex;gap:8px"><input type="date" id="f"><input type="date" id="t"></div>
+<div class="sum" id="sum"></div><h2>ยอดรายวัน</h2><div id="days"></div><h2>เมนูขายดี</h2><div id="top"></div><h2>บิลทั้งหมด (กดเพื่อแก้ไข)</h2><div id="bills"></div></div></main>
+<div class="ov" id="ed"><div class="sheet" id="edb"></div></div>
+<script type="module">
+import{auth,db,MENU,onAuthStateChanged,collection,query,where,onSnapshot,doc,updateDoc,arrayUnion}from"./common.js";
+const $=i=>document.getElementById(i),P={};MENU.forEach(m=>P[m.id]=m);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ymd=d=>d.toLocaleDateString("sv-SE"),baht=n=>n.toLocaleString("th-TH");
+const tot=o=>(o.items||[]).reduce((s,i)=>s+(P[i.id]?P[i.id].p*(+i.q||0):0),0);
+const ST={new:"รอทำ",ready:"รอเก็บเงิน",paid:"ชำระแล้ว",cancelled:"ยกเลิก"},PAY={cash:"เงินสด",transfer:"โอน",gov:"โครงการรัฐ"};
+let orders=[],unsub=null,ed=null;
+function setR(r){const n=new Date(),a=new Date(n);if(r==="m")a.setDate(1);else a.setDate(n.getDate()-(+r>0?+r-1:0));$("f").value=ymd(a);$("t").value=ymd(n);load()}
+function load(){unsub&&unsub();unsub=onSnapshot(query(collection(db,"orders"),where("day",">=",$("f").value),where("day","<=",$("t").value)),s=>{orders=s.docs.map(d=>({id:d.id,...d.data()}));render()})}
+onAuthStateChanged(auth,u=>{const ok=u&&!u.isAnonymous;$("login").style.display=ok?"none":"block";$("app").style.display=ok?"block":"none";unsub&&unsub();unsub=null;if(ok)setR("7")});
+document.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>setR(b.dataset.r));$("f").onchange=$("t").onchange=load;
+function render(){const paid=orders.filter(o=>o.status==="paid"),sm=k=>paid.filter(o=>o.pay===k).reduce((s,o)=>s+(o.total||0),0),all=paid.reduce((s,o)=>s+(o.total||0),0);
+$("sum").innerHTML=`<div>ยอดรวม<b>${baht(all)}</b></div><div>เงินสด<b>${baht(sm("cash"))}</b></div><div>โอน<b>${baht(sm("transfer"))}</b></div><div>โครงการรัฐ<b>${baht(sm("gov"))}</b></div><div>จำนวนบิล<b>${paid.length}</b></div>`;
+const dm={};paid.forEach(o=>{(dm[o.day]=dm[o.day]||{s:0,n:0}).s+=o.total||0;dm[o.day].n++});
+$("days").innerHTML=Object.keys(dm).sort().reverse().map(d=>`<div class="row"><span>${d}</span><span>${baht(dm[d].s)} บาท · ${dm[d].n} บิล</span></div>`).join("")||'<div class="msg">ไม่มีข้อมูล</div>';
+const tp={};paid.forEach(o=>(o.items||[]).forEach(i=>{if(P[i.id])tp[i.id]=(tp[i.id]||0)+(+i.q||0)}));
+$("top").innerHTML=Object.keys(tp).sort((a,b)=>tp[b]-tp[a]).slice(0,10).map(k=>`<div class="row"><span>${P[k].n}</span><span>${tp[k]}</span></div>`).join("")||'<div class="msg">ไม่มีข้อมูล</div>';
+$("bills").innerHTML=[...orders].sort((a,b)=>a.day===b.day?b.queue-a.queue:a.day<b.day?1:-1).map(o=>`<button class="bill ${o.status==="cancelled"?"dim":""}" data-e="${o.id}"><span>${o.day} คิว ${o.queue}${o.name?" · "+esc(o.name):""}<small>${ST[o.status]||""}${o.status==="paid"?" · "+(PAY[o.pay]||""):""}</small></span><b>${baht(o.status==="paid"?(o.total||0):tot(o))}</b></button>`).join("")||'<div class="msg">ไม่มีบิล</div>'}
+function rend(){const o=ed;$("edb").innerHTML=`<h3>คิว ${o.queue} · ${o.day}</h3>`+o.items.map((i,x)=>`<div class="row"><div>${P[i.id]?P[i.id].n:esc(i.id)}${(i.o||[]).length?`<small>ซอส: ${i.o.map(esc).join(" + ")}</small>`:""}</div><div class="q"><button class="b minus" data-d="${x}">−</button><span>${i.q}</span><button class="b" data-u="${x}">+</button></div></div>`).join("")
++`<select id="addsel"><option value="">+ เพิ่มเมนู…</option>${MENU.filter(m=>!m.pick).map(m=>`<option value="${m.id}">${m.n} (${m.p})</option>`).join("")}</select>`
++`<input id="enote" maxlength="200" placeholder="หมายเหตุ" value="${esc(o.note||"")}"><select id="est">${Object.keys(ST).map(k=>`<option value="${k}" ${o.status===k?"selected":""}>${ST[k]}</option>`).join("")}</select>`
++`<select id="epay">${Object.keys(PAY).map(k=>`<option value="${k}" ${(o.pay||"cash")===k?"selected":""}>ช่องทางชำระ: ${PAY[k]}</option>`).join("")}</select>`
++`<div class="tot"><span>รวม</span><span>${baht(tot(o))} บาท</span></div><button class="cta" id="esave"><span>บันทึก</span></button><button class="x" id="eclose">ปิด</button>`}
+document.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;const d=t.dataset;
+if(d.e){const o=orders.find(x=>x.id===d.e);ed=JSON.parse(JSON.stringify(o));ed.items=ed.items||[];rend();$("ed").classList.add("on")}
+else if(d.d!==undefined){const i=ed.items[+d.d];if(--i.q<=0)ed.items.splice(+d.d,1);rend()}
+else if(d.u!==undefined){ed.items[+d.u].q++;rend()}
+else if(t.id==="eclose")$("ed").classList.remove("on");
+else if(t.id==="esave"){const items=ed.items.filter(i=>i.q>0);if(!items.length){alert("ไม่มีรายการ ใช้สถานะ ยกเลิก แทน");return}
+const st=$("est").value,nt=tot({items}),u={items,note:$("enote").value.trim().slice(0,200),status:st,edits:arrayUnion({t:Date.now(),by:auth.currentUser.email,to:nt,st})};
+if(st==="paid"){u.pay=$("epay").value;u.total=nt}
+try{await updateDoc(doc(db,"orders",ed.id),u);$("ed").classList.remove("on")}catch(x){alert("บันทึกไม่สำเร็จ ลองใหม่")}}});
+$("edb").addEventListener("change",e=>{if(e.target.id==="addsel"&&e.target.value){const n=$("enote").value,s=$("est").value,p=$("epay").value,id=e.target.value,f=ed.items.find(i=>i.id===id&&!(i.o||[]).length);f?f.q++:ed.items.push({id,q:1,o:[]});ed.note=n;ed.status=s;ed.pay=p;rend()}});
+</script></body></html>
