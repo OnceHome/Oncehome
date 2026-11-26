@@ -3,7 +3,7 @@
 <header><h1>ร้านขนมปังปิ้ง</h1><p>เลือกเมนู ใส่จำนวน แล้วกดสั่ง</p></header><main id="menu"></main>
 <div class="bar"><button class="cta" id="open" disabled><span id="cnt">ตะกร้าว่าง</span><span id="sum"></span></button></div>
 <div class="ov" id="pickOv"><div class="sheet"><h3 id="pickT"></h3><div class="msg">เลือกซอส 2 อย่าง</div><div class="chips" id="chips"></div><button class="cta" id="pickOk" disabled><span>ใส่ตะกร้า</span><span id="pickN">0/2</span></button><button class="x" id="pickX">ยกเลิก</button></div></div>
-<div class="ov" id="cartOv"><div class="sheet"><h3>ออเดอร์ของคุณ</h3><div id="lines"></div><input id="name" maxlength="30" placeholder="ชื่อ หรือเลขโต๊ะ (ไม่บังคับ)"><div class="tot"><span>รวม</span><span id="tot"></span></div><div class="err" id="err"></div><button class="cta" id="send"><span>ส่งออเดอร์</span><span id="sendSum"></span></button><button class="x" id="cartX">กลับไปเลือกเมนู</button></div></div>
+<div class="ov" id="cartOv"><div class="sheet"><h3>ออเดอร์ของคุณ</h3><div id="lines"></div><input id="name" maxlength="30" placeholder="ชื่อ หรือเลขโต๊ะ (ไม่บังคับ)"><input id="note" maxlength="200" placeholder="หมายเหตุถึงร้าน เช่น ไม่ใส่นม (ไม่บังคับ)"><div class="tot"><span>รวม</span><span id="tot"></span></div><div class="err" id="err"></div><button class="cta" id="send"><span>ส่งออเดอร์</span><span id="sendSum"></span></button><button class="x" id="cartX">กลับไปเลือกเมนู</button></div></div>
 <div class="ov" id="doneOv"><div class="sheet"><div class="msg" style="text-align:center">คิวของคุณ</div><div class="big" id="qn"></div><h3 id="st" style="text-align:center"></h3><div class="msg" style="text-align:center">ชำระเงินที่หน้าร้านเมื่อรับของ</div><button class="cta" id="again">สั่งเพิ่ม</button></div></div>
 <script type="module">
 import{auth,db,MENU,SAUCES,day,signInAnonymously,collection,doc,runTransaction,serverTimestamp,onSnapshot}from"./common.js";
@@ -33,9 +33,9 @@ $("again").onclick=()=>{unsub&&unsub();unsub=null;try{localStorage.removeItem("o
 $("send").onclick=async()=>{const b=$("send");b.disabled=true;$("err").textContent="";
 try{if(!auth.currentUser)await signInAnonymously(auth);const ref=doc(collection(db,"orders")),cr=doc(db,"counters",day());
 await runTransaction(db,async t=>{const s=await t.get(cr),n=(s.exists()?s.data().n:0)+1;t.set(cr,{n});
-t.set(ref,{uid:auth.currentUser.uid,day:day(),queue:n,name:$("name").value.trim().slice(0,30),items:cart.map(l=>({id:l.id,q:l.q,o:l.o})),status:"new",createdAt:serverTimestamp()})});
+t.set(ref,{uid:auth.currentUser.uid,day:day(),queue:n,name:$("name").value.trim().slice(0,30),note:$("note").value.trim().slice(0,200),items:cart.map(l=>({id:l.id,q:l.q,o:l.o})),status:"new",createdAt:serverTimestamp()})});
 try{localStorage.setItem("oid",JSON.stringify({id:ref.id,day:day()}))}catch(e){}
-cart=[];paint();$("cartOv").classList.remove("on");watch(ref.id)}
+$("note").value="";cart=[];paint();$("cartOv").classList.remove("on");watch(ref.id)}
 catch(e){$("err").textContent="ส่งไม่สำเร็จ ลองใหม่อีกครั้ง หรือแจ้งที่หน้าร้าน"}b.disabled=false};
 try{const o=JSON.parse(localStorage.getItem("oid")||"null");if(o&&o.day===day())watch(o.id)}catch(e){}
 paint();
