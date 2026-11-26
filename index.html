@@ -1,0 +1,42 @@
+<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>สั่งอาหาร</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="style.css"></head><body>
+<header><h1>ร้านขนมปังปิ้ง</h1><p>เลือกเมนู ใส่จำนวน แล้วกดสั่ง</p></header><main id="menu"></main>
+<div class="bar"><button class="cta" id="open" disabled><span id="cnt">ตะกร้าว่าง</span><span id="sum"></span></button></div>
+<div class="ov" id="pickOv"><div class="sheet"><h3 id="pickT"></h3><div class="msg">เลือกซอส 2 อย่าง</div><div class="chips" id="chips"></div><button class="cta" id="pickOk" disabled><span>ใส่ตะกร้า</span><span id="pickN">0/2</span></button><button class="x" id="pickX">ยกเลิก</button></div></div>
+<div class="ov" id="cartOv"><div class="sheet"><h3>ออเดอร์ของคุณ</h3><div id="lines"></div><input id="name" maxlength="30" placeholder="ชื่อ หรือเลขโต๊ะ (ไม่บังคับ)"><div class="tot"><span>รวม</span><span id="tot"></span></div><div class="err" id="err"></div><button class="cta" id="send"><span>ส่งออเดอร์</span><span id="sendSum"></span></button><button class="x" id="cartX">กลับไปเลือกเมนู</button></div></div>
+<div class="ov" id="doneOv"><div class="sheet"><div class="msg" style="text-align:center">คิวของคุณ</div><div class="big" id="qn"></div><h3 id="st" style="text-align:center"></h3><div class="msg" style="text-align:center">ชำระเงินที่หน้าร้านเมื่อรับของ</div><button class="cta" id="again">สั่งเพิ่ม</button></div></div>
+<script type="module">
+import{auth,db,MENU,SAUCES,day,signInAnonymously,collection,doc,runTransaction,serverTimestamp,onSnapshot}from"./common.js";
+const $=i=>document.getElementById(i),P={};MENU.forEach(m=>P[m.id]=m);
+let cart=[],pick=null,unsub=null;
+signInAnonymously(auth).catch(()=>{});
+const baht=n=>n.toLocaleString("th-TH")+" บาท",tot=()=>cart.reduce((s,l)=>s+l.q*P[l.id].p,0);
+(function(){let h="",c="";MENU.forEach(m=>{if(m.c!==c){c=m.c;h+="<h2>"+c+"</h2>"}
+h+=`<div class="item"><div class="n">${m.n}<span class="p">${m.p} บาท</span></div><div class="q"><button class="b minus" data-m="${m.id}" hidden>−</button><span id="q${m.id}" hidden>0</span><button class="b" data-a="${m.id}">+</button></div></div>`});$("menu").innerHTML=h})();
+function add(id,o=[]){const k=id+"|"+o.join(","),l=cart.find(x=>x.k===k);l?l.q++:cart.push({k,id,o,q:1});paint()}
+function dec(k){const i=cart.findIndex(x=>x.k===k);if(i>-1&&--cart[i].q<=0)cart.splice(i,1);paint()}
+function paint(){MENU.forEach(m=>{const q=cart.filter(l=>l.id===m.id).reduce((s,l)=>s+l.q,0);$("q"+m.id).textContent=q;$("q"+m.id).hidden=!q;document.querySelector(`[data-m="${m.id}"]`).hidden=!q});
+const n=cart.reduce((s,l)=>s+l.q,0);$("cnt").textContent=n?`ดูตะกร้า (${n} รายการ)`:"ตะกร้าว่าง";$("sum").textContent=n?baht(tot()):"";$("open").disabled=!n;
+$("lines").innerHTML=cart.map(l=>`<div class="row"><div>${P[l.id].n}${l.o.length?`<small>ซอส: ${l.o.join(" + ")}</small>`:""}<small>${baht(P[l.id].p*l.q)}</small></div><div class="q"><button class="b minus" data-k="-${l.k}">−</button><span>${l.q}</span><button class="b" data-k="+${l.k}">+</button></div></div>`).join("");
+$("tot").textContent=$("sendSum").textContent=baht(tot());if(!n)$("cartOv").classList.remove("on")}
+function upPick(){document.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on",pick.s.includes(c.dataset.s)));$("pickN").textContent=pick.s.length+"/2";$("pickOk").disabled=pick.s.length!==2}
+document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;const d=t.dataset;
+if(d.a){P[d.a].pick?(pick={id:d.a,s:[]},$("pickT").textContent=P[d.a].n,$("chips").innerHTML=SAUCES.map(s=>`<button class="chip" data-s="${s}">${s}</button>`).join(""),upPick(),$("pickOv").classList.add("on")):add(d.a)}
+else if(d.m){const l=[...cart].reverse().find(x=>x.id===d.m);l&&dec(l.k)}
+else if(d.s){const i=pick.s.indexOf(d.s);i>-1?pick.s.splice(i,1):pick.s.length<2&&pick.s.push(d.s);upPick()}
+else if(d.k){const k=d.k.slice(1);d.k[0]==="-"?dec(k):(cart.find(x=>x.k===k).q++,paint())}});
+$("pickOk").onclick=()=>{add(pick.id,[...pick.s]);$("pickOv").classList.remove("on")};$("pickX").onclick=()=>$("pickOv").classList.remove("on");
+$("open").onclick=()=>{$("err").textContent="";$("cartOv").classList.add("on")};$("cartX").onclick=()=>$("cartOv").classList.remove("on");
+const TXT={new:"รับออเดอร์แล้ว กำลังรอทำ",ready:"พร้อมรับแล้ว!",paid:"ขอบคุณครับ",cancelled:"ออเดอร์ถูกยกเลิก"};
+function watch(id){unsub&&unsub();unsub=onSnapshot(doc(db,"orders",id),s=>{if(!s.exists())return;const o=s.data();$("qn").textContent=o.queue;$("st").textContent=TXT[o.status]||"";$("doneOv").classList.add("on")})}
+$("again").onclick=()=>{unsub&&unsub();unsub=null;try{localStorage.removeItem("oid")}catch(e){}cart=[];paint();$("doneOv").classList.remove("on")};
+$("send").onclick=async()=>{const b=$("send");b.disabled=true;$("err").textContent="";
+try{if(!auth.currentUser)await signInAnonymously(auth);const ref=doc(collection(db,"orders")),cr=doc(db,"counters",day());
+await runTransaction(db,async t=>{const s=await t.get(cr),n=(s.exists()?s.data().n:0)+1;t.set(cr,{n});
+t.set(ref,{uid:auth.currentUser.uid,day:day(),queue:n,name:$("name").value.trim().slice(0,30),items:cart.map(l=>({id:l.id,q:l.q,o:l.o})),status:"new",createdAt:serverTimestamp()})});
+try{localStorage.setItem("oid",JSON.stringify({id:ref.id,day:day()}))}catch(e){}
+cart=[];paint();$("cartOv").classList.remove("on");watch(ref.id)}
+catch(e){$("err").textContent="ส่งไม่สำเร็จ ลองใหม่อีกครั้ง หรือแจ้งที่หน้าร้าน"}b.disabled=false};
+try{const o=JSON.parse(localStorage.getItem("oid")||"null");if(o&&o.day===day())watch(o.id)}catch(e){}
+paint();
+</script></body></html>
